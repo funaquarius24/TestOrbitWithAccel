@@ -1,0 +1,48 @@
+classdef ClassODE
+   properties
+        MotionModelFcn
+    end
+
+    properties (Hidden)
+        CurrentPosition
+        CurrentVelocity
+        CurrentAcceleration = zeros(1,3); % not part of the state vector
+        CurrentOrientation = quaternion.ones;
+    end
+    
+   methods
+        function obj = ClassODE(mmfcn, initialState)
+            obj.MotionModelFcn = mmfcn;
+            obj.CurrentPosition = initialState([1 2 3]);
+            obj.CurrentVelocity = initialState([4 5 6]);
+        end
+
+        function flag = isGeo(~)
+           flag = true;
+        end
+   end
+    
+   methods (Access = public)
+        function stepImpl(obj,dt, varargin)
+            % Use the motion model function to update Position and Velocity
+%             dt = 1/obj.SampleRate;
+            r = obj.CurrentPosition;
+            v = obj.CurrentVelocity; 
+            
+            options = odeset('RelTol', 1e-13); % Setting a tolerance% Numerical Integration
+            
+            state = [r;v];
+            [t, Y] = ode113(@customODE, dt, state, options, 0.1);% Pulling Position Data from Output
+%             newstate = obj.MotionModelFcn(dt,state);
+            
+            obj.Position = Y([1 2 3])';
+            obj.Velocity = Y([4 5 6])';
+            obj.CurrentPosition = obj.Position;
+            obj.CurrentVelocity = obj.Velocity;
+            
+            return state;
+        end
+    end
+   
+   
+end
