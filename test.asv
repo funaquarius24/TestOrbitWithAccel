@@ -1,4 +1,4 @@
-clear
+clear;
 
 % Creating Inputs for Numerical Integration
 Y0 = [20000; 0; 0; 0; 2.9; 1.8]; % [x; y; z; vx; vy; vz] [km, km/s]
@@ -41,7 +41,8 @@ for i = 1:numDebris
     
     data(i).size = randi([10, 30]);
     
-    data(i).position = [x(ind_time) + randi(50), y(ind_time) + randi(50), z(ind_time) + randi(50)]; %#ok<SAGROW>
+    data(i).position = [x(ind_time) + randi(20), y(ind_time) + randi(20), z(ind_time) + randi(20)]; %#ok<SAGROW>
+    data(i).position = 1.0e+04 * [1.3562    0.9184    0.5700];
     time = tspan(ind_time);
     
     [t, Y] = ode113(@customODE, tspan, Y_d0, options);% Pulling Position Data from Output
@@ -56,13 +57,13 @@ end
 
 look_ahead_time = 3;
 odeClass = ClassODE(0, Y0);
-contactTime = t(end);
+contactTime = length(t);
 found = 0;
 for kk=1:length(t)
     if kk + 3 > length(t) break; end
     for deb=1:numDebris
         if Sat.debris(deb).distance(kk+3) < (Sat.size + data(deb).size)
-            contactTime = kk
+            contactTime = kk;
             found = 1;
             break
             
@@ -86,10 +87,10 @@ vz = realSat.velocity(end, 3);
 odeClass.setState([px py pz vx vy vz]);
 odeClass.time = contactTime;
 
-for classT=contactTime:length(t(contactTime:end))
+for classT=contactTime:length(t)
     
     for jk=1:look_ahead_time
-        [~, newState, retTime] = odeClass.stepImpl(60, 0.1);
+        [~, newState, retTime] = odeClass.stepImpl(60, 0.01);
         satLookAhead.position(jk, :) = newState([1 2 3]);
         satLookAhead.velocity(jk, :) = newState([4 5 6]);
         
@@ -101,13 +102,16 @@ for classT=contactTime:length(t(contactTime:end))
         [~, newState, retTime] = odeClass.stepImpl(60, -0.1);
         satLookAhead.position(jk, :) = newState([1 2 3]);
         satLookAhead.velocity(jk, :) = newState([4 5 6]);
-        
+         
     end
     realSat.position(end+1:end+look_ahead_time, :) = satLookAhead.position;
     realSat.velocity(end+1:end+look_ahead_time, :) = satLookAhead.velocity;
     
-    realSat.position(contactTime+look_ahead_time + 1, :) = Sat.position(contactTime+look_ahead_time, :);
-    realSat.velocity(contactTime+look_ahead_time + 1, :) = Sat.velocity(contactTime+look_ahead_time, :);
+    
+    realSat.position = [realSat.position; Sat.position(contactTime+look_ahead_time:end, :)];
+    realSat.velocity = [realSat.velocity; Sat.velocity(contactTime+look_ahead_time:end, :)];
+%     realSat.position(contactTime+look_ahead_time*2 + 1, :) = Sat.position(contactTime+look_ahead_time:end, :);
+%     realSat.velocity(contactTime+look_ahead_time*2 + 1, :) = Sat.velocity(contactTime+look_ahead_time:end, :);
     break
     
     
@@ -157,15 +161,19 @@ for t=1:length(x)
         disp(t)
     end
     
+    if t == contactTime
+        disp(t)
+    end
+    
     % Updating satellite trajectory
     pLine.XData = x(1:t);
     pLine.YData = y(1:t);
     pLine.ZData = z(1:t);
     
     % Updating the satellite point
-    pObject.XData = realSat.position(1, 1); 
-    pObject.YData = realSat.position(1, 2);
-    pObject.ZData = realSat.position(1, 3);
+    pObject.XData = realSat.position(t, 1); 
+    pObject.YData = realSat.position(t, 2);
+    pObject.ZData = realSat.position(t, 3);
     
     for i=1:numDebris
 %         data(i).scatter.XData = data(i).x_d(t);

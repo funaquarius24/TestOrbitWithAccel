@@ -42,6 +42,7 @@ for i = 1:numDebris
     data(i).size = randi([10, 30]);
     
     data(i).position = [x(ind_time) + randi(20), y(ind_time) + randi(20), z(ind_time) + randi(20)]; %#ok<SAGROW>
+    data(i).position = 1.0e+04 * [1.3562    0.9184    0.5700];
     time = tspan(ind_time);
     
     [t, Y] = ode113(@customODE, tspan, Y_d0, options);% Pulling Position Data from Output
@@ -86,7 +87,7 @@ vz = realSat.velocity(end, 3);
 odeClass.setState([px py pz vx vy vz]);
 odeClass.time = contactTime;
 
-for classT=contactTime:length(t(contactTime:end))
+for classT=contactTime:length(t)
     
     for jk=1:look_ahead_time
         [~, newState, retTime] = odeClass.stepImpl(60, 0.01);
