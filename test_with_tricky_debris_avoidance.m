@@ -11,7 +11,7 @@ z = Ys(:, 3); % [km]
 
 Sat.position = Ys(:, [1 2 3]);
 Sat.velocity = Ys(:, [4 5 6]);
-Sat.size =20;
+Sat.size =0.5;
 
 %% Debris data
 numDebris = 1;
@@ -39,7 +39,7 @@ for i = 1:numDebris
     ind_time = randi(part);
 %     Y_d0(1) = x(ind_time);
     
-    data(i).size = randi([10, 30]);
+    data(i).size = randi([10, 300]);
     
     data(i).position = [x(ind_time) + randi(20), y(ind_time) + randi(20), z(ind_time) + randi(20)]; %#ok<SAGROW>
     time = tspan(ind_time);
