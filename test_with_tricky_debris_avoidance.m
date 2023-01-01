@@ -42,7 +42,6 @@ for i = 1:numDebris
     data(i).size = randi([10, 30]);
     
     data(i).position = [x(ind_time) + randi(20), y(ind_time) + randi(20), z(ind_time) + randi(20)]; %#ok<SAGROW>
-    data(i).position = 1.0e+04 * [1.3562    0.9184    0.5700];
     time = tspan(ind_time);
     
     [t, Y] = ode113(@customODE, tspan, Y_d0, options);% Pulling Position Data from Output
