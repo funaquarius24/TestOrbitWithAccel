@@ -6,8 +6,21 @@ classdef ClassODE < dynamicprops
         CurrentVelocity
         CurrentAcceleration = zeros(1,3); % not part of the state vector
         look_ahead_time = 3;
+        dt = 0;
         debrisData = [];
+        traj = [];
+        trajTime = [];
         numDebris = 1;
+        satSize = 0.5;
+        satMass = 500;
+        defaultAccel = 0.01;
+        
+        avoiding = 0; % In the process of avoiding debris
+        avoidAngle = 15; 
+        avoidingContactLength = 0; % How much are we avoiding to? Should be 0 if not avoiding
+        
+        test = [];
+        testAdded = 0;
     end
     
     
@@ -24,7 +37,7 @@ classdef ClassODE < dynamicprops
     methods (Access = public)
         function [obj, newState, time] = stepImpl(obj, dt, varargin)
             % Use the motion model function to update Position and Velocity
-            
+            acceleration = 0;
             if nargin >= 3
                 acceleration = varargin{1};
             end
@@ -32,10 +45,87 @@ classdef ClassODE < dynamicprops
                 obj.setState(varargin{2})
             end
             %             dt = 1/obj.SampleRate;
-            r = obj.CurrentPosition;
-            v = obj.CurrentVelocity;
+            
+            if dt == 0
+                dt = obj.dt;
+            end
+            
+            [willCollide, contactTime, contactDebris, tTest, YTest] = obj.checkCollision();
+            
+            if willCollide && ~obj.avoiding
+                obj.avoiding = 1;
+                
+                initialPosition = YTest(1, [1 2 3]);
+                finalPosition = YTest(contactTime(1), [1 2 3]);
+                
+                debrisPosition = obj.debrisData(contactDebris(1)).position;
+                
+                normValue = norm(finalPosition-initialPosition);
+                if normValue == 0
+                    arcCosValue = [0 0 0];
+                else
+                    arcCosValue = (finalPosition-initialPosition) / normValue;
+                end
+                
+                origMoveAngle = acos(arcCosValue);
+                
+                origMoveDistance = norm(finalPosition-initialPosition);
+                
+                normValue = norm(finalPosition-initialPosition);
+                if normValue == 0
+                    arcCosValue = [0 0 0];
+                else
+                    arcCosValue = (debrisPosition-initialPosition) / normValue;
+                end
+                debrisAngle = acos(arcCosValue);
+                
+                origSpeed = (finalPosition - initialPosition) / (dt*contactTime);
+                
+                
+                signs = sign(origMoveAngle-debrisAngle);
+                
+                ang = origMoveAngle + signs*obj.avoidAngle - 180;
+                
+                if isnan(ang(1))
+                    ter = 8
+                end
+                
+                te = finalPosition-initialPosition;
+                rotaZYX = initialPosition' + rotz(ang(3))*roty(ang(2))*rotx(ang(1))*te';
+                
+                rotaZYX = rotaZYX';
+                
+                finalSpeed = (rotaZYX - initialPosition) / (dt*contactTime);
+                
+                acceleration = (finalSpeed - obj.CurrentVelocity') / (dt*contactTime);
+                
+                obj.CurrentAcceleration = acceleration;
+                obj.avoidingContactLength = contactTime - 1;
+                
+                if ~obj.testAdded
+                    obj.test = [obj.test; initialPosition; finalPosition;];
+                    obj.testAdded = 1;
+                end
+                
+            elseif obj.avoiding
+                
+                if obj.avoidingContactLength > 0
+                    obj.avoidingContactLength = obj.avoidingContactLength-1;
+                    acceleration = obj.CurrentAcceleration;
+                else
+                    obj.avoiding = 0; % obj.avoidingContactLength should not be less than 0
+                    acceleration = 0;
+                    
+                    obj.trajTime = obj.time;
+                    obj.CurrentPosition = obj.traj(obj.time/dt, [1 2 3]);
+                    obj.CurrentVelocity = obj.traj(obj.time/dt, [4 5 6]);
+                end
+            end
             
             options = odeset('RelTol', 1e-13); % Setting a tolerance% Numerical Integration
+            
+            r = obj.CurrentPosition;
+            v = obj.CurrentVelocity;
             
             state = [r,v];
             tmp = obj.time + dt/2;
@@ -53,38 +143,79 @@ classdef ClassODE < dynamicprops
             
         end
         
-        function newState = avoidDebris(obj)
-            odeClass = ClassODE(0, Y0);
-            contactTime = length(t);
-            found = 0;
-            for kk=1:length(t)
-                if kk + obj.look_ahead_time > length(t) 
-                    break; end
-                for deb=1:obj.numDebris
-                    if Sat.debris(deb).distance(kk+3) < (Sat.size + data(deb).size)
-                        contactTime = kk;
-                        found = 1;
-                        break
-                        
-                    end
+        function [willCollide, contactTime, contactDebris, t, Y] = checkCollision(obj)
+            tspan = [obj.time:obj.dt:(obj.time + (obj.dt * obj.look_ahead_time))];
+            [t, Y] = obj.runODE(tspan);
+            satPos = Y(:, [1 2 3]);
+            
+            
+            contactTime = [];
+            contactDebris = [];
+            
+            for j=1:obj.numDebris
+                debrisPosition = obj.debrisData(j).position; 
+                
+                difference = [satPos(:, 1) - debrisPosition(1), ...
+                    satPos(:, 2) - debrisPosition(2), satPos(:, 3) - debrisPosition(3)];
+                satDistance = sqrt(difference(:, 1).^2 + difference(:, 2).^2 + difference(:, 3).^2);
+                
+                ind = find(satDistance <= obj.satSize + obj.debrisData(j).size);
+                
+                if ~isempty(ind)
+                    ind = ind(1);
+                    contactTime(end+1) = ind; %#ok
+                    contactDebris(end+1) = j; %#ok
+                    willCollide = 1;
+                else
+                    willCollide = 0;
                 end
-                if found ==1
-                    break
-                end
+                
             end
             
-            realSat.position = [x(1:contactTime) y(1:contactTime) z(1:contactTime)];
-            realSat.velocity = [Y(1:contactTime, 4) Y(1:contactTime, 5) Y(1:contactTime, 6)];
-            
-            odeClass.time = contactTime;
-            px = realSat.position(end, 1); py = realSat.position(end, 2); pz = realSat.position(end, 3);
-            vx = realSat.velocity(end, 1); vy = realSat.velocity(end, 2); vz = realSat.velocity(end, 3);
-            odeClass.setState([px py pz vx vy vz]);
-            odeClass.time = contactTime;
         end
+        
         function obj = setState(obj, initialState)
             obj.CurrentPosition = initialState([1 2 3]);
             obj.CurrentVelocity = initialState([4 5 6]);
+        end
+        
+        function obj = setTrajectory(obj, traj, trajTime)
+            obj.traj = traj;
+            obj.trajTime = trajTime;
+        end
+        
+        function obj = setDebrisData(obj, debrisData)
+            obj.debrisData = debrisData;
+        end
+        
+        function obj = setSatData(obj, size, dt, mass)
+            obj.satSize = size;
+            obj.satMass = mass;
+            obj.dt = dt;
+        end
+        
+        function [t, Y] = runODE(obj, tspan)
+            r = obj.CurrentPosition;
+            v = obj.CurrentVelocity;
+            
+            options = odeset('RelTol', 1e-13); % Setting a tolerance% Numerical Integration
+            
+            state = [r,v];
+            
+            [t, Y] = ode113(@customODE, tspan, state, options); % Pulling Position Data from Output
+            %             newstate = obj.MotionModelFcn(dt,state);
+        end
+        
+        function [t, Y] = runODE_accel(obj, tspan, acceleration)
+            r = obj.CurrentPosition;
+            v = obj.CurrentVelocity;
+            
+            options = odeset('RelTol', 1e-13); % Setting a tolerance% Numerical Integration
+            
+            state = [r,v];
+            
+            [t, Y] = ode113(@customODE_accel, tspan, state, options, acceleration); % Pulling Position Data from Output
+            %             newstate = obj.MotionModelFcn(dt,state);
         end
     end
     

@@ -13,7 +13,7 @@ Sat.position = Ys(:, [1 2 3]);
 Sat.velocity = Ys(:, [4 5 6]);
 Sat.size =0.5;
 
-%% Debris data
+%% Create Debris data
 numDebris = 1;
 
 range = 7e6 + 1e5*randn(numDebris,1);
@@ -53,6 +53,8 @@ for i = 1:numDebris
         Sat.position(:, 2) - data(i).position(:, 2), Sat.position(:, 3) - data(i).position(:, 3)];
     Sat.debris(i).distance = sqrt(diff(:, 1).^2 + diff(:, 2).^2 + diff(:, 3).^2);
 end
+
+%% Compute the adjusted orbits
 
 look_ahead_time = 3;
 odeClass = ClassODE(0, Y0);
@@ -126,10 +128,7 @@ end
 
 
 
-
-
-
-%% Creating Figure
+%% Creating Figure for visualization
 figure; 
 hold on
 title('Two-Body Trajectory', 'Interpreter', 'Latex')
