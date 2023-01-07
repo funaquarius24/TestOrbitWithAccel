@@ -86,17 +86,14 @@ classdef ClassODE < dynamicprops
                 
                 ang = origMoveAngle + signs*obj.avoidAngle - 180;
                 
-                if isnan(ang(1))
-                    ter = 8
-                end
-                
                 if ~isreal(ang)
                     ang = real(ang);
                 end
                 
                 
                 te = finalPosition-initialPosition;
-                rotaZYX = initialPosition + rotz(ang(3))*roty(ang(2))*rotx(ang(1))*te;
+                size3 = obj.debrisData(contactDebris(1)).size * [1 1 1]';
+                rotaZYX = initialPosition + rotz(ang(3))*roty(ang(2))*rotx(ang(1))*te + size3;
                 
 %                 rotaZYX = rotaZYX;
                 
