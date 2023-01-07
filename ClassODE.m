@@ -19,6 +19,8 @@ classdef ClassODE < dynamicprops
         avoidAngle = 15; 
         avoidingContactLength = 0; % How much are we avoiding to? Should be 0 if not avoiding
         
+        forces = [];
+        
         test = [];
         testAdded = 0;
     end
@@ -55,14 +57,14 @@ classdef ClassODE < dynamicprops
             if willCollide && ~obj.avoiding
                 obj.avoiding = 1;
                 
-                initialPosition = YTest(1, [1 2 3]);
-                finalPosition = YTest(contactTime(1), [1 2 3]);
+                initialPosition = YTest(1, [1 2 3])';
+                finalPosition = YTest(contactTime(1), [1 2 3])';
                 
-                debrisPosition = obj.debrisData(contactDebris(1)).position;
+                debrisPosition = obj.debrisData(contactDebris(1)).position';
                 
                 normValue = norm(finalPosition-initialPosition);
                 if normValue == 0
-                    arcCosValue = [0 0 0];
+                    arcCosValue = [0 0 0]';
                 else
                     arcCosValue = (finalPosition-initialPosition) / normValue;
                 end
@@ -73,7 +75,7 @@ classdef ClassODE < dynamicprops
                 
                 normValue = norm(finalPosition-initialPosition);
                 if normValue == 0
-                    arcCosValue = [0 0 0];
+                    arcCosValue = [0 0 0]';
                 else
                     arcCosValue = (debrisPosition-initialPosition) / normValue;
                 end
@@ -90,20 +92,35 @@ classdef ClassODE < dynamicprops
                     ter = 8
                 end
                 
-                te = finalPosition-initialPosition;
-                rotaZYX = initialPosition' + rotz(ang(3))*roty(ang(2))*rotx(ang(1))*te';
+                if ~isreal(ang)
+                    ang = real(ang);
+                end
                 
-                rotaZYX = rotaZYX';
+                
+                te = finalPosition-initialPosition;
+                rotaZYX = initialPosition + rotz(ang(3))*roty(ang(2))*rotx(ang(1))*te;
+                
+%                 rotaZYX = rotaZYX;
                 
                 finalSpeed = (rotaZYX - initialPosition) / (dt*contactTime);
                 
-                acceleration = (finalSpeed - obj.CurrentVelocity') / (dt*contactTime);
+                acceleration = (finalSpeed - obj.CurrentVelocity) / (dt*contactTime);
                 
                 obj.CurrentAcceleration = acceleration;
                 obj.avoidingContactLength = contactTime - 1;
                 
+                % s=ut+1/2at^2
+                % V = u+at
+                % S = (u + V)t/2
+                
+                v = obj.CurrentVelocity + acceleration * dt;
+                s = (v + obj.CurrentVelocity) * dt/2;
+                
+                obj.CurrentPosition = s + obj.CurrentPosition;
+                obj.CurrentVelocity = v;
+                
                 if ~obj.testAdded
-                    obj.test = [obj.test; initialPosition; finalPosition;];
+                    obj.test = [obj.test; initialPosition'; finalPosition'];
                     obj.testAdded = 1;
                 end
                 
@@ -112,32 +129,56 @@ classdef ClassODE < dynamicprops
                 if obj.avoidingContactLength > 0
                     obj.avoidingContactLength = obj.avoidingContactLength-1;
                     acceleration = obj.CurrentAcceleration;
+                    
+                    % s=ut+1/2at^2
+                    % V = u+at
+                    % S = (u + V)t/2
+                    
+                    v = obj.CurrentVelocity + acceleration * dt;
+                    s = (v + obj.CurrentVelocity) * dt/2;
+                    
+                    obj.CurrentPosition = s + obj.CurrentPosition;
+                    obj.CurrentVelocity = v;
+                    
                 else
-                    obj.avoiding = 0; % obj.avoidingContactLength should not be less than 0
+                    obj.avoiding = 1; % obj.avoidingContactLength should not be less than 0
                     acceleration = 0;
                     
+                    obj.CurrentAcceleration = 0;
+                    
                     obj.trajTime = obj.time;
-                    obj.CurrentPosition = obj.traj(obj.time/dt, [1 2 3]);
-                    obj.CurrentVelocity = obj.traj(obj.time/dt, [4 5 6]);
+                    currentPosition = obj.traj(obj.time/dt, [1 2 3]);
+                    currentVelocity = obj.traj(obj.time/dt, [4 5 6]);
+                    
+                    % Convert to column vector because of matrix
+                    % multiplication
+                    obj.CurrentPosition = currentPosition';
+                    obj.CurrentVelocity = currentVelocity';
+                    
                 end
+                
+                
+            else
+                options = odeset('RelTol', 1e-13); % Setting a tolerance% Numerical Integration
+                
+                r = obj.CurrentPosition;
+                v = obj.CurrentVelocity;
+                
+                state = [r,v];
+                tmp = obj.time + dt/2;
+                tspan = [obj.time obj.time+dt];
+                [t, Y] = ode113(@customODE_accel, tspan, state, options, acceleration);% Pulling Position Data from Output
+                %             newstate = obj.MotionModelFcn(dt,state);
+                
+                Position = Y(end, [1 2 3])';
+                Velocity = Y(end, [4 5 6])';
+                newState = [Position; Velocity];
+                obj.CurrentPosition = Position;
+                obj.CurrentVelocity = Velocity;
+                
             end
             
-            options = odeset('RelTol', 1e-13); % Setting a tolerance% Numerical Integration
-            
-            r = obj.CurrentPosition;
-            v = obj.CurrentVelocity;
-            
-            state = [r,v];
-            tmp = obj.time + dt/2;
-            tspan = [obj.time obj.time+dt];
-            [t, Y] = ode113(@customODE_accel, tspan, state, options, acceleration);% Pulling Position Data from Output
-            %             newstate = obj.MotionModelFcn(dt,state);
-            
-            Position = Y(end, [1 2 3])';
-            Velocity = Y(end, [4 5 6])';
-            newState = [Position; Velocity];
-            obj.CurrentPosition = Position;
-            obj.CurrentVelocity = Velocity;
+            newState = [obj.CurrentPosition; obj.CurrentVelocity];
             time = obj.time + dt;
             obj.time = time;
             
@@ -152,6 +193,8 @@ classdef ClassODE < dynamicprops
             contactTime = [];
             contactDebris = [];
             
+            willCollide = 0;
+            
             for j=1:obj.numDebris
                 debrisPosition = obj.debrisData(j).position; 
                 
@@ -165,9 +208,8 @@ classdef ClassODE < dynamicprops
                     ind = ind(1);
                     contactTime(end+1) = ind; %#ok
                     contactDebris(end+1) = j; %#ok
+                    
                     willCollide = 1;
-                else
-                    willCollide = 0;
                 end
                 
             end

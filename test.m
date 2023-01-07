@@ -15,7 +15,7 @@ Sat.size = 0.5;
 Sat.mass = 500;
 
 %% Create Debris data
-numDebris = 2;
+numDebris = 5;
 
 range = 7e6 + 1e5*randn(numDebris,1);
 ecc = 0.015 + 0.005*randn(numDebris,1);
@@ -43,8 +43,8 @@ for i = 1:numDebris
     debrisData(i).size = randi([250, 300]); %#ok<SAGROW>
     
     debrisData(i).position = [x(ind_time) + randi(20), y(ind_time) + randi(20), z(ind_time) + randi(20)]; %#ok<SAGROW>
-    debrisData(1).position = 1.0e+04 * [1.6833    0.6919    0.4289];
-    debrisData(2).position = 1.0e+04 * [0.4732   -1.0876   -0.6742];
+%     debrisData(1).position = 1.0e+04 * [1.6833    0.6919    0.4289];
+%     debrisData(2).position = 1.0e+04 * [0.4732   -1.0876   -0.6742];
     time = tspan(ind_time);
     
     [t, Y] = ode113(@customODE, tspan, Y_d0, options);% Pulling Position Data from Output
@@ -72,6 +72,7 @@ realSat.t(1) = t(1);
 
 odeClass.setDebrisData(debrisData);
 odeClass.setTrajectory(Ys, t);
+odeClass.numDebris = numDebris;
 
 dt = t(2) - t(1) ;
 odeClass.setSatData(Sat.size, dt, Sat.mass);
@@ -114,17 +115,14 @@ testDistance = zeros(length(x), 1);
 
 % Plotting the first iteration
 
-pLine1 = plot3(realSat.position(:, 1), realSat.position(:, 2), realSat.position(:, 3), 'r');
-pLine = plot3(x(1),y(1),z(1),'b');
+pLine1 = plot3(realSat.position(1, 1), realSat.position(1, 2), realSat.position(1, 3), 'r');
+% pLine = plot3(x,y,z,'b');
 
 pObject = scatter3(realSat.position(1, 1), realSat.position(1, 2), realSat.position(1, 3), 30, 'filled','b');
 for i=1:numDebris
     debrisData(i).scatter = scatter3(debrisData(i).position(1), debrisData(i).position(2), debrisData(i).position(3), 30, 'filled');
 end
-scatter3(odeClass.test(1, 1), odeClass.test(1, 2), odeClass.test(1, 3), 30, 'filled','g')
-scatter3(odeClass.test(2, 1), odeClass.test(2, 2), odeClass.test(2, 3), 30, 'filled','y')
-scatter3(odeClass.test(3, 1), odeClass.test(3, 2), odeClass.test(3, 3), 30, 'filled','b')
-for t=1:length(x)
+for t=1:length(realSat.position(:, 1))
     if mod(t, 100) == 0
         disp(t)
     end
@@ -134,9 +132,9 @@ for t=1:length(x)
 %     end
     
     % Updating satellite trajectory
-    pLine.XData = x(1:t);
-    pLine.YData = y(1:t);
-    pLine.ZData = z(1:t);
+    pLine1.XData = realSat.position(1:t, 1);
+    pLine1.YData = realSat.position(1:t, 2);
+    pLine1.ZData = realSat.position(1:t, 3);
     
     % Updating the satellite point
     pObject.XData = realSat.position(t, 1); 
