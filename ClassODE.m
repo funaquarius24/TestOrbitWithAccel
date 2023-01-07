@@ -62,7 +62,7 @@ classdef ClassODE < dynamicprops
                 
                 normValue = norm(finalPosition-initialPosition);
                 if normValue == 0
-                    arcCosValue = [0 0 0];
+                    arcCosValue = [0 0 0]';
                 else
                     arcCosValue = (finalPosition-initialPosition) / normValue;
                 end
@@ -73,7 +73,7 @@ classdef ClassODE < dynamicprops
                 
                 normValue = norm(finalPosition-initialPosition);
                 if normValue == 0
-                    arcCosValue = [0 0 0];
+                    arcCosValue = [0 0 0]';
                 else
                     arcCosValue = (debrisPosition-initialPosition) / normValue;
                 end
@@ -107,6 +107,13 @@ classdef ClassODE < dynamicprops
                 obj.CurrentAcceleration = acceleration;
                 obj.avoidingContactLength = contactTime - 1;
                 
+                v = obj.CurrentVelocity + acceleration * dt;
+                s = (v + obj.CurrentVelocity) * dt/2;
+                
+                obj.CurrentPosition = s + obj.CurrentPosition;
+                obj.CurrentVelocity = v;
+                    
+                
                 if ~obj.testAdded
                     obj.test = [obj.test; initialPosition'; finalPosition'];
                     obj.testAdded = 1;
@@ -133,8 +140,11 @@ classdef ClassODE < dynamicprops
                     acceleration = 0;
                     
                     obj.trajTime = obj.time;
-                    obj.CurrentPosition = obj.traj(obj.time/dt, [1 2 3]);
-                    obj.CurrentVelocity = obj.traj(obj.time/dt, [4 5 6]);
+                    
+                    currentPosition = obj.traj(obj.time/dt, [1 2 3]);
+                    currentVelocity = obj.traj(obj.time/dt, [4 5 6]);
+                    obj.CurrentPosition = currentPosition';
+                    obj.CurrentVelocity = currentVelocity';
                     
                 end
                 
