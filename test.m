@@ -43,8 +43,8 @@ for i = 1:numDebris
     debrisData(i).size = randi([250, 300]); %#ok<SAGROW>
     
     debrisData(i).position = [x(ind_time) + randi(20), y(ind_time) + randi(20), z(ind_time) + randi(20)]; %#ok<SAGROW>
-%     debrisData(1).position = 1.0e+04 * [1.6833    0.6919    0.4289];
-%     debrisData(2).position = 1.0e+04 * [0.4732   -1.0876   -0.6742];
+    debrisData(1).position = 1.0e+04 * [1.6833    0.6919    0.4289];
+    debrisData(2).position = 1.0e+04 * [0.4732   -1.0876   -0.6742];
     time = tspan(ind_time);
     
     [t, Y] = ode113(@customODE, tspan, Y_d0, options);% Pulling Position Data from Output
@@ -116,12 +116,15 @@ testDistance = zeros(length(x), 1);
 % Plotting the first iteration
 
 pLine1 = plot3(realSat.position(1, 1), realSat.position(1, 2), realSat.position(1, 3), 'r');
-% pLine = plot3(x,y,z,'b');
+pLine = plot3(x,y,z,'b');
 
 pObject = scatter3(realSat.position(1, 1), realSat.position(1, 2), realSat.position(1, 3), 30, 'filled','b');
 for i=1:numDebris
     debrisData(i).scatter = scatter3(debrisData(i).position(1), debrisData(i).position(2), debrisData(i).position(3), 30, 'filled');
 end
+scatter3(odeClass.test(1, 1), odeClass.test(1, 2), odeClass.test(1, 3), 30, 'filled','g')
+scatter3(odeClass.test(2, 1), odeClass.test(2, 2), odeClass.test(2, 3), 30, 'filled','y')
+% scatter3(odeClass.test(3, 1), odeClass.test(3, 2), odeClass.test(3, 3), 30, 'filled','b')
 for t=1:length(realSat.position(:, 1))
     if mod(t, 100) == 0
         disp(t)

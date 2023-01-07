@@ -19,8 +19,6 @@ classdef ClassODE < dynamicprops
         avoidAngle = 15; 
         avoidingContactLength = 0; % How much are we avoiding to? Should be 0 if not avoiding
         
-        forces = [];
-        
         test = [];
         testAdded = 0;
     end
@@ -64,7 +62,7 @@ classdef ClassODE < dynamicprops
                 
                 normValue = norm(finalPosition-initialPosition);
                 if normValue == 0
-                    arcCosValue = [0 0 0]';
+                    arcCosValue = [0 0 0];
                 else
                     arcCosValue = (finalPosition-initialPosition) / normValue;
                 end
@@ -75,7 +73,7 @@ classdef ClassODE < dynamicprops
                 
                 normValue = norm(finalPosition-initialPosition);
                 if normValue == 0
-                    arcCosValue = [0 0 0]';
+                    arcCosValue = [0 0 0];
                 else
                     arcCosValue = (debrisPosition-initialPosition) / normValue;
                 end
@@ -109,16 +107,6 @@ classdef ClassODE < dynamicprops
                 obj.CurrentAcceleration = acceleration;
                 obj.avoidingContactLength = contactTime - 1;
                 
-                % s=ut+1/2at^2
-                % V = u+at
-                % S = (u + V)t/2
-                
-                v = obj.CurrentVelocity + acceleration * dt;
-                s = (v + obj.CurrentVelocity) * dt/2;
-                
-                obj.CurrentPosition = s + obj.CurrentPosition;
-                obj.CurrentVelocity = v;
-                
                 if ~obj.testAdded
                     obj.test = [obj.test; initialPosition'; finalPosition'];
                     obj.testAdded = 1;
@@ -144,16 +132,9 @@ classdef ClassODE < dynamicprops
                     obj.avoiding = 0; % obj.avoidingContactLength should not be less than 0
                     acceleration = 0;
                     
-                    obj.CurrentAcceleration = 0;
-                    
                     obj.trajTime = obj.time;
-                    currentPosition = obj.traj(obj.time/dt, [1 2 3]);
-                    currentVelocity = obj.traj(obj.time/dt, [4 5 6]);
-                    
-                    % Convert to column vector because of matrix
-                    % multiplication
-                    obj.CurrentPosition = currentPosition';
-                    obj.CurrentVelocity = currentVelocity';
+                    obj.CurrentPosition = obj.traj(obj.time/dt, [1 2 3]);
+                    obj.CurrentVelocity = obj.traj(obj.time/dt, [4 5 6]);
                     
                 end
                 
@@ -193,8 +174,6 @@ classdef ClassODE < dynamicprops
             contactTime = [];
             contactDebris = [];
             
-            willCollide = 0;
-            
             for j=1:obj.numDebris
                 debrisPosition = obj.debrisData(j).position; 
                 
@@ -208,7 +187,6 @@ classdef ClassODE < dynamicprops
                     ind = ind(1);
                     contactTime(end+1) = ind; %#ok
                     contactDebris(end+1) = j; %#ok
-                    
                     willCollide = 1;
                 end
                 
